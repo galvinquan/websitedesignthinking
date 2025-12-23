@@ -1,0 +1,47 @@
+body {
+  margin: 0;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Sidebar */
+#sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 380px;
+  background: var(--bg);
+  padding: 20px;
+  box-shadow: 4px 0 20px rgba(0,0,0,0.06);
+  overflow-y: auto;
+  transition: transform 0.35s ease;
+  z-index: 10;
+}
+
+#sidebar.collapsed {
+  transform: translateX(-100%);
+}
+
+/* Main map wrapper */
+#main {
+  position: absolute;
+  top: 0;
+  left: 380px;
+  right: 0;
+  bottom: 0;
+  transition: left 0.35s ease;
+}
+
+/* Khi sidebar đóng */
+#sidebar.collapsed ~ #main {
+  left: 0;
+}
+
+/* Map */
+#map {
+  width: 100%;
+  height: 100%;
+}
