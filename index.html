@@ -1,0 +1,450 @@
+<!-- <!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>Smart Route + Weather</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <aside id="sidebar">
+    <h1>My travel partner</h1>
+
+    <label for="start">Điểm bắt đầu</label>
+    <div class="input-group">
+      <input id="start" placeholder="Nhập điểm bắt đầu..." autocomplete="off" />
+      <div id="start-suggestions" class="suggestions"></div>
+    </div>
+
+    <label for="end">Điểm đến</label>
+    <div class="input-group">
+      <input id="end" placeholder="Nhập điểm đến..." autocomplete="off" />
+      <div id="end-suggestions" class="suggestions"></div>
+    </div>
+
+    <button id="routeBtn">🚗 Tìm đường đi tốt nhất</button>
+
+    <section id="dest-info">
+  <h3>🌤 Thời tiết & môi trường (Điểm đến)</h3>
+
+  <b>Nhiệt độ:</b> <span id="temp">…</span><br>
+  <b>Khả năng mưa:</b> <span id="rain">…</span><br>
+  <b>PM2.5:</b> <span id="pm25">…</span><br>
+  <hr>
+  <div id="adviceArea">
+    <b>Lời khuyên:</b> <span id="advice">—</span>
+  <div id="chatbot-container" style="margin-top: 20px;">
+    <h3>💬 Trợ lý ảo</h3>
+    <div id="chatbox"
+        style="height: 250px; overflow-y: auto; border: 1px solid #ccc; border-radius: 10px;
+                padding: 10px; background: #fff; font-size: 14px;">
+    </div>
+
+    <div style="display: flex; margin-top: 8px; gap: 6px; align-items: center;">
+      <input id="userInput"
+            type="text"
+            placeholder="Bạn cần gì..."
+            style="flex-grow: 1; height: 36px; padding: 6px 10px;
+                    border-radius: 8px; border: 1px solid #ccc; font-size: 14px; outline: none;">
+      <button id="sendBtn"
+              style="background: #1d4ed8; color: white; border: none; border-radius: 8px;
+                    height: 36px; padding: 0 14px; cursor: pointer;">Gửi</button>
+    </div>
+  </div>
+
+
+
+</section>
+
+  </aside>
+
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="config.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html> -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>My Travel Partner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Fonts & Leaflet -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-soft: #dbeafe;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e5e7eb;
+    }
+
+    * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== Sidebar ===== */
+    #sidebar {
+      width: 380px;
+      background: var(--bg);
+      padding: 20px;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.06);
+      overflow-y: auto;
+      transition: transform 0.35s ease;
+      z-index: 10;
+    }
+
+    #sidebar.collapsed { transform: translateX(-100%); }
+
+    #sidebar h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    /* Toggle sidebar */
+    #toggleSidebar {
+      position: absolute;
+      top: 20px;
+      left: 380px;
+      height: 42px;
+      width: 42px;
+      border-radius: 12px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(37,99,235,0.35);
+      transition: left 0.35s ease, transform 0.2s;
+      z-index: 20;
+    }
+
+    #sidebar.collapsed + #toggleSidebar { left: 12px; }
+    #toggleSidebar:hover { transform: scale(1.05); }
+
+    /* ===== Tabs ===== */
+    .tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .tab {
+      flex: 1;
+      height: 36px;
+      border-radius: 10px;
+      background: #e5e7eb;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.25s;
+    }
+
+    .tab.active {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 8px 20px rgba(37,99,235,0.35);
+    }
+
+    /* ===== Cards ===== */
+    .card {
+      background: var(--card);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+      margin-bottom: 14px;
+      animation: fadeUp 0.35s ease;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    label {
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    input {
+      width: 100%;
+      height: 44px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 0 14px;
+      font-size: 14px;
+      transition: 0.2s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+
+    .input-group { margin-bottom: 12px; }
+
+    /* Button */
+    #routeBtn {
+      width: 100%;
+      height: 46px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #2563eb, #1e40af);
+      color: white;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: 0.25s;
+      margin-top: 6px;
+    }
+
+    #routeBtn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 25px rgba(37,99,235,0.3);
+    }
+
+    /* Weather */
+    .weather-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .stat {
+      background: #f1f5f9;
+      border-radius: 12px;
+      padding: 10px;
+      text-align: center;
+      font-size: 13px;
+    }
+
+    #adviceArea {
+      background: #eff6ff;
+      border-left: 4px solid var(--primary);
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    /* Chat */
+    #chatbox {
+      height: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+      padding: 8px;
+      background: #f8fafc;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 10px 12px;
+      border-radius: 14px;
+      font-size: 14px;
+    }
+
+    .message.user { align-self: flex-end; background: var(--primary); color: white; }
+    .message.bot { align-self: flex-start; background: #e5e7eb; }
+
+    .chat-input { display: flex; gap: 6px; }
+    .chat-input input { flex-grow: 1; }
+
+    .chat-input button {
+      height: 40px;
+      padding: 0 14px;
+      border-radius: 10px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* Suggestions */
+    .suggestions {
+      position: absolute;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+      margin-top: 6px;
+      width: calc(100% - 32px);
+      max-height: 180px;
+      overflow-y: auto;
+      z-index: 100;
+      border: 1px solid var(--border);
+    }
+
+    .suggestion-item {
+      padding: 10px 12px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .suggestion-item:hover {
+      background: var(--primary-soft);
+    }
+
+    /* Map */
+    #map { flex: 1; }
+  </style>
+</head>
+<body>
+
+  <aside id="sidebar">
+    <h1>My Travel Partner</h1>
+    <div class="subtitle">Smart routing • Weather • AI assistant</div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="routeWeather">📍 Route</button>
+      <button class="tab" data-tab="chat">💬 AI</button>
+    </div>
+
+    <!-- ROUTE + WEATHER COMBINED -->
+    <section class="tab-content" id="routeWeather">
+      <div class="card">
+        <div class="input-group">
+          <label>Điểm bắt đầu</label>
+          <input id="start" placeholder="Nhập điểm bắt đầu…" autocomplete="off" />
+          <div id="start-suggestions" class="suggestions"></div>
+        </div>
+
+        <div class="input-group">
+          <label>Điểm đến</label>
+          <input id="end" placeholder="Nhập điểm đến…" autocomplete="off" />
+          <div id="end-suggestions" class="suggestions"></div>
+        </div>
+
+        <button id="routeBtn">🚗 Đường đi tối ưu nhất</button>
+      </div>
+
+      <div class="card">
+        <div class="weather-grid">
+          <div class="stat">🌡 <b id="temp">—</b></div>
+          <div class="stat">🌧 <b id="rain">—</b></div>
+          <div class="stat">🌫 <b id="pm25">—</b></div>
+        </div>
+
+        <div id="adviceArea">
+          <b>Lời khuyên</b>
+          <div id="advice">—</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHAT -->
+    <section class="tab-content" id="chat" style="display:none">
+      <div class="card">
+        <div id="chatbox"></div>
+        <div class="chat-input">
+          <input id="userInput" placeholder="Con vợ anh hôm nay thấy thế nào…" />
+          <button id="sendBtn">Gửi</button>
+        </div>
+      </div>
+    </section>
+  </aside>
+
+  <button id="toggleSidebar">☰</button>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="config.js"></script>
+  <script type="module" src="app.js"></script>
+
+  <script>
+    // ===== Autocomplete using Nominatim =====
+    function setupAutocomplete(inputId, suggestionId) {
+      const input = document.getElementById(inputId);
+      const box = document.getElementById(suggestionId);
+
+      let controller;
+
+      input.addEventListener('input', async () => {
+        const query = input.value.trim();
+        if (query.length < 3) {
+          box.innerHTML = '';
+          return;
+        }
+
+        if (controller) controller.abort();
+        controller = new AbortController();
+
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`,
+            { signal: controller.signal }
+          );
+          const data = await res.json();
+
+          box.innerHTML = '';
+          data.slice(0, 5).forEach(place => {
+            const div = document.createElement('div');
+            div.className = 'suggestion-item';
+            div.textContent = place.display_name;
+            div.onclick = () => {
+              input.value = place.display_name;
+              box.innerHTML = '';
+            };
+            box.appendChild(div);
+          });
+        } catch (e) {}
+      });
+
+      document.addEventListener('click', e => {
+        if (!box.contains(e.target) && e.target !== input) {
+          box.innerHTML = '';
+        }
+      });
+    }
+
+    setupAutocomplete('start', 'start-suggestions');
+    setupAutocomplete('end', 'end-suggestions');
+
+
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('toggleSidebar');
+    toggleBtn.onclick = () => sidebar.classList.toggle('collapsed');
+
+    const tabs = document.querySelectorAll('.tab');
+    const contents = document.querySelectorAll('.tab-content');
+
+    tabs.forEach(tab => {
+      tab.onclick = () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        contents.forEach(c => c.style.display = 'none');
+        document.getElementById(tab.dataset.tab).style.display = 'block';
+      };
+    });
+  </script>
+</body>
+</html>
+
